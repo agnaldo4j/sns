@@ -1,9 +1,14 @@
 package me.snov.sns.actor
 
 import akka.actor.{Actor, ActorLogging, Props}
-import akka.http.scaladsl.model.HttpResponse
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.marshalling.Marshal
+import akka.http.scaladsl.model.{HttpMethods, HttpRequest, RequestEntity}
+import akka.stream.ActorMaterializer
 import spray.json._
 import me.snov.sns.model.Message
+
+import scala.concurrent.ExecutionContext
 
 object ProducerActor {
   def props(endpoint: String, subscriptionArn: String, topicArn: String) = Props(classOf[ProducerActor], endpoint, subscriptionArn, topicArn)
@@ -12,19 +17,23 @@ object ProducerActor {
 class ProducerActor(endpoint: String, subscriptionArn: String, topicArn: String) extends Actor with ActorLogging {
   def endpointUri = endpoint
 
-  def transformOutgoingMessage(msg: Any) = msg match {
-    case snsMsg: Message => snsMsg.toJson.toString
+  def transformOutgoingMessage(msg: Message) = msg match {
+    case snsMsg: Message => {
 
-//    case snsMsg: Message => new CamelMessage(snsMsg.toJson.toString, Map(
-//        CamelMessage.MessageExchangeId -> snsMsg.uuid,
-//        "x-amz-sns-message-type" -> "Notification",
-//        "x-amz-sns-message-id" -> snsMsg.uuid,
-//        "x-amz-sns-subscription-arn" -> subscriptionArn,
-//        "x-amz-sns-topic-arn" -> topicArn
-//      ))
+
+      implicit val executor: ExecutionContext = this.context.dispatcher
+
+      (Marshal(snsMsg.toJson.toString).to[RequestEntity]).flatMap { entity =>
+        implicit val materializer: ActorMaterializer = ActorMaterializer()
+        implicit val system = this.context.system
+        val request = HttpRequest(uri=endpoint, method=HttpMethods.POST, entity=entity)
+        Http().singleRequest(request)
+      }
+
+    }
   }
 
   override def receive = {
-    case message: Message => sender ! transformOutgoingMessage(message)
+    case message: Message => transformOutgoingMessage(message)
   }
 }

@@ -28,7 +28,6 @@ object Main extends App with ToStrict {
   val dbService = new FileDbService(Properties.envOrElse("DB_PATH", config.getString("db.path")))
 
   val dbActor = system.actorOf(DbActor.props(dbService), name = "DbActor")
-  val homeActor = system.actorOf(HomeActor.props, name = "HomeActor")
   val subscribeActor = system.actorOf(SubscribeActor.props(dbActor), name = "SubscribeActor")
   val publishActor = system.actorOf(PublishActor.props(subscribeActor), name = "PublishActor")
 
@@ -36,8 +35,7 @@ object Main extends App with ToStrict {
     toStrict {
       TopicApi.route(subscribeActor) ~
       SubscribeApi.route(subscribeActor) ~
-      PublishApi.route(publishActor) ~
-      HomeApi.route(homeActor)
+      PublishApi.route(publishActor)
     }
 
   Http().bindAndHandle(
