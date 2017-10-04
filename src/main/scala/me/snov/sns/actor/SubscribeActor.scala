@@ -7,7 +7,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import me.snov.sns.model.{Configuration, Message, Subscription, Topic}
 
 object SubscribeActor {
-  def props = Props(classOf[SubscribeActor])
+  def props() = Props(classOf[SubscribeActor])
 
   case class CmdSubscribe(topicArn: String, protocol: String, endpoint: String)
 
