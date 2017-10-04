@@ -37,7 +37,6 @@ object Main extends App with ToStrict {
       TopicApi.route(subscribeActor) ~
       SubscribeApi.route(subscribeActor) ~
       PublishApi.route(publishActor) ~
-      HealthCheckApi.route ~
       HomeApi.route(homeActor)
     }
 
