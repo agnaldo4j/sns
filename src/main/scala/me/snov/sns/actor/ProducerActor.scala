@@ -19,8 +19,6 @@ class ProducerActor(endpoint: String, subscriptionArn: String, topicArn: String)
 
   def transformOutgoingMessage(msg: Message) = msg match {
     case snsMsg: Message => {
-
-
       implicit val executor: ExecutionContext = this.context.dispatcher
 
       (Marshal(snsMsg.toJson.toString).to[RequestEntity]).flatMap { entity =>
