@@ -4,11 +4,10 @@ import java.util.UUID
 
 import akka.actor.Status.{Failure, Success}
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
-import me.snov.sns.actor.DbActor.CmdGetConfiguration
 import me.snov.sns.model.{Configuration, Message, Subscription, Topic}
 
 object SubscribeActor {
-  def props(dbActor: ActorRef) = Props(classOf[SubscribeActor], dbActor)
+  def props = Props(classOf[SubscribeActor])
 
   case class CmdSubscribe(topicArn: String, protocol: String, endpoint: String)
 
@@ -27,7 +26,7 @@ object SubscribeActor {
   case class CmdListTopics()
 }
 
-class SubscribeActor(dbActor: ActorRef) extends Actor with ActorLogging {
+class SubscribeActor() extends Actor with ActorLogging {
 
   import me.snov.sns.actor.SubscribeActor._
   
@@ -36,8 +35,6 @@ class SubscribeActor(dbActor: ActorRef) extends Actor with ActorLogging {
   var topics = Map[TopicArn, Topic]()
   var subscriptions = Map[TopicArn, List[Subscription]]()
   var actorPool = Map[Subscription, ActorRef]()
-
-  dbActor ! CmdGetConfiguration
 
   def fanOut(topicArn: TopicArn, message: Message) = {
     try {
@@ -64,8 +61,6 @@ class SubscribeActor(dbActor: ActorRef) extends Actor with ActorLogging {
     val subscription = Subscription(s"${topicArn}:${UUID.randomUUID}", "", topicArn, protocol, endpoint)
     initSubscription(subscription)
     
-    save()
-
     subscription
   }
 
@@ -79,8 +74,6 @@ class SubscribeActor(dbActor: ActorRef) extends Actor with ActorLogging {
 
   def unsubscribe(subscriptionArn: String) = {
     subscriptions = subscriptions.map { case (key, topicSubscriptions) => (key, topicSubscriptions.filter((s: Subscription) => s.arn != subscriptionArn)) }.toMap
-
-    save()
 
     Success
   }
@@ -100,8 +93,6 @@ class SubscribeActor(dbActor: ActorRef) extends Actor with ActorLogging {
         val topic = Topic(s"arn:aws:sns:us-east-1:${System.currentTimeMillis}:$name", name)
         topics += (topic.arn -> topic)
 
-        save()
-
         topic
     }
   }
@@ -113,8 +104,6 @@ class SubscribeActor(dbActor: ActorRef) extends Actor with ActorLogging {
       if (subscriptions.isDefinedAt(arn)) {
         subscriptions -= arn
       }
-
-      save()
 
       Success
     } else {
@@ -129,10 +118,6 @@ class SubscribeActor(dbActor: ActorRef) extends Actor with ActorLogging {
     log.info("Loaded configuration")
   }
   
-  def save() = {
-    dbActor ! new Configuration(subscriptions = listSubscriptions(), topics = topics.values.toList)
-  }
-
   override def receive = {
     case CmdCreateTopic(name) => sender ! findOrCreateTopic(name)
     case CmdDeleteTopic(arn) => sender ! delete(arn)
