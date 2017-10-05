@@ -25,7 +25,7 @@ object Main extends App with ToStrict {
 
   val config = ConfigFactory.load()
 
-  val subscribeActor = system.actorOf(SubscribeActor.props, name = "SubscribeActor")
+  val subscribeActor = system.actorOf(SubscribeActor.props(), name = "SubscribeActor")
   val publishActor = system.actorOf(PublishActor.props(subscribeActor), name = "PublishActor")
 
   val routes: Route =
